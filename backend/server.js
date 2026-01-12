@@ -102,6 +102,72 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// 测试 AI 服务连接
+app.post('/api/test', async (req, res) => {
+  try {
+    const { aiConfig } = req.body;
+
+    // 验证必填字段
+    if (!aiConfig || !aiConfig.url || !aiConfig.apiKey || !aiConfig.model) {
+      return res.status(400).json({ 
+        error: '缺少必填字段：AI服务配置（URL、API Key、Model）' 
+      });
+    }
+
+    // 发送简单测试请求
+    const aiResponse = await axios.post(
+      aiConfig.url,
+      {
+        model: aiConfig.model,
+        messages: [
+          {
+            role: 'user',
+            content: '测试连接'
+          }
+        ],
+        max_tokens: 10
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${aiConfig.apiKey}`
+        },
+        timeout: 10000 // 10秒超时
+      }
+    );
+
+    // 检查响应
+    if (aiResponse.data && aiResponse.data.choices) {
+      res.json({ 
+        success: true,
+        message: '连接成功'
+      });
+    } else {
+      res.status(500).json({ 
+        success: false,
+        error: '连接失败：响应格式不正确' 
+      });
+    }
+
+  } catch (error) {
+    console.error('测试连接错误:', error.message);
+    
+    let errorMessage = '连接失败';
+    if (error.response) {
+      errorMessage += `：HTTP ${error.response.status}`;
+    } else if (error.request) {
+      errorMessage += '：无法连接到 AI 服务';
+    } else {
+      errorMessage += '：请求配置错误';
+    }
+
+    res.status(500).json({ 
+      success: false,
+      error: errorMessage 
+    });
+  }
+});
+
 // 健康检查接口
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

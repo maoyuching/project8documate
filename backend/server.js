@@ -84,14 +84,16 @@ app.post('/api/generate', async (req, res) => {
 
   } catch (error) {
     console.error('AI 服务调用错误:', error.message);
+    console.error('错误详情:', error.response?.data || error.message);
     
     let errorMessage = '调用 AI 服务失败';
     if (error.response) {
-      errorMessage += `：${error.response.status} - ${JSON.stringify(error.response.data)}`;
+      errorMessage += `：HTTP ${error.response.status}`;
+      // 不暴露详细的 API 错误信息
     } else if (error.request) {
       errorMessage += '：无法连接到 AI 服务';
     } else {
-      errorMessage += `：${error.message}`;
+      errorMessage += '：请求配置错误';
     }
 
     res.status(500).json({ 

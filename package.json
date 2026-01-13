@@ -1,0 +1,39 @@
+{
+  "name": "project8documate",
+  "version": "1.0.0",
+  "description": "写材料助手 - AI-powered writing assistant",
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "keywords": ["electron", "vue", "writing", "ai"],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.1",
+    "@electron-forge/maker-deb": "^7.11.1",
+    "@electron-forge/maker-rpm": "^7.11.1",
+    "@electron-forge/maker-squirrel": "^7.11.1",
+    "@electron-forge/maker-zip": "^7.11.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
+    "@electron-forge/plugin-fuses": "^7.11.1",
+    "@electron-forge/plugin-vite": "^7.11.1",
+    "@electron/fuses": "^1.8.0",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "autoprefixer": "^10.4.23",
+    "electron": "39.2.7",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "vite": "^7.3.1",
+    "vue": "^3.5.26",
+    "vue-router": "^4.6.4"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "element-plus": "^2.13.1",
+    "lucide-vue-next": "^0.562.0"
+  }
+}

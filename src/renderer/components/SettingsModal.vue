@@ -107,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import { X, Save, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -123,6 +123,10 @@ const localSettings = reactive({ ...props.settings });
 const testing = ref(false);
 const testResult = ref(null);
 
+watch(() => props.settings, (newSettings) => {
+  Object.assign(localSettings, newSettings);
+}, { deep: true });
+
 function close() {
   emit('close');
 }
@@ -132,12 +136,44 @@ function save() {
 }
 
 async function testConnection() {
+  if (!localSettings.url || !localSettings.apiKey) {
+    testResult.value = {
+      success: false,
+      message: '请填写完整的API设置（URL和API Key）',
+    };
+    return;
+  }
+
   testing.value = true;
   testResult.value = null;
 
   try {
-    const result = await window.electronAPI.testConnection(localSettings);
-    testResult.value = result;
+    const response = await fetch(localSettings.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localSettings.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: localSettings.model || 'gpt-4',
+        messages: [
+          {
+            role: 'user',
+            content: 'Hello'
+          }
+        ],
+        max_tokens: 10,
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`连接失败: ${response.status} ${response.statusText}`);
+    }
+    
+    testResult.value = {
+      success: true,
+      message: '连接成功！',
+    };
   } catch (err) {
     testResult.value = {
       success: false,

@@ -37,8 +37,23 @@
     "vue-router": "^4.6.4"
   },
   "dependencies": {
+    "@ctrl/tinycolor": "^4.2.0",
+    "@element-plus/icons-vue": "^2.3.2",
+    "@floating-ui/core": "^1.7.3",
+    "@floating-ui/dom": "^1.7.4",
+    "@floating-ui/utils": "^0.2.10",
+    "@popperjs/core": "^2.11.8",
+    "@vue/reactivity": "^3.5.26",
+    "@vue/runtime-core": "^3.5.26",
+    "@vue/runtime-dom": "^3.5.26",
+    "@vueuse/core": "^14.1.0",
+    "@vueuse/shared": "^14.1.0",
+    "async-validator": "^4.2.5",
     "electron-squirrel-startup": "^1.0.1",
     "element-plus": "^2.13.1",
-    "lucide-vue-next": "^0.562.0"
+    "lodash-es": "^4.17.22",
+    "lucide-vue-next": "^0.562.0",
+    "memoize-one": "^6.0.0",
+    "normalize-wheel-es": "^1.2.0"
   }
 }

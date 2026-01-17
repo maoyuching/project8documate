@@ -1,54 +1,56 @@
 <template>
   <div class="flex h-screen bg-gray-50">
     <!-- Sidebar -->
-    <div v-if="showSidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col">
-      <!-- New Session Button -->
-      <div class="p-4 border-b border-gray-200">
-        <button
-          @click="createNewSession"
-          class="w-full bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-        >
-          <Plus :size="20" />
-          <span>新建会话</span>
-        </button>
-      </div>
+    <transition name="sidebar">
+      <div v-if="showSidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col">
+        <!-- New Session Button -->
+        <div class="p-4 border-b border-gray-200">
+          <button
+            @click="createNewSession"
+            class="w-full bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus :size="20" />
+            <span>新建会话</span>
+          </button>
+        </div>
 
-      <!-- Session List -->
-      <div class="flex-1 overflow-y-auto">
-        <div
-          v-for="session in sessions"
-          :key="session.id"
-          @click="selectSession(session.id)"
-          :class="[
-            'p-4 cursor-pointer transition-colors relative group',
-            currentSessionId === session.id
-              ? 'bg-blue-50 border-l-4 border-blue-600'
-              : 'hover:bg-gray-50'
-          ]"
-        >
-          <div class="flex items-start gap-3">
-            <MessageSquare :size="20" class="text-gray-600 flex-shrink-0 mt-1" />
-            <div class="flex-1 min-w-0">
-              <div class="font-medium text-gray-900 truncate">
-                {{ session.title }}
+        <!-- Session List -->
+        <div class="flex-1 overflow-y-auto">
+          <div
+            v-for="session in sessions"
+            :key="session.id"
+            @click="selectSession(session.id)"
+            :class="[
+              'p-4 cursor-pointer transition-colors relative group',
+              currentSessionId === session.id
+                ? 'bg-blue-50 border-l-4 border-blue-600'
+                : 'hover:bg-gray-50'
+            ]"
+          >
+            <div class="flex items-start gap-3">
+              <MessageSquare :size="20" class="text-gray-600 flex-shrink-0 mt-1" />
+              <div class="flex-1 min-w-0">
+                <div class="font-medium text-gray-900 truncate">
+                  {{ session.title }}
+                </div>
+                <div class="text-sm text-gray-500 mt-1">
+                  {{ formatTime(session.timestamp) }}
+                </div>
               </div>
-              <div class="text-sm text-gray-500 mt-1">
-                {{ formatTime(session.timestamp) }}
-              </div>
+              <button
+                @click.stop="deleteSession(session.id)"
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700"
+              >
+                <Trash2 :size="16" />
+              </button>
             </div>
-            <button
-              @click.stop="deleteSession(session.id)"
-              class="opacity-0 group-hover:opacity-100 transition-opacity text-red-600 hover:text-red-700"
-            >
-              <Trash2 :size="16" />
-            </button>
+          </div>
+          <div v-if="sessions.length === 0" class="p-4 text-center text-gray-500 text-sm">
+            暂无会话
           </div>
         </div>
-        <div v-if="sessions.length === 0" class="p-4 text-center text-gray-500 text-sm">
-          暂无会话
-        </div>
       </div>
-    </div>
+    </transition>
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col">
@@ -204,3 +206,18 @@ function formatTime(timestamp) {
   }
 }
 </script>
+
+<style>
+.sidebar-enter-active, .sidebar-leave-active {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.sidebar-enter-from, .sidebar-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.sidebar-enter-to, .sidebar-leave-from {
+  transform: translateX(0);
+  opacity: 1;
+}
+</style>
+

@@ -3,16 +3,16 @@
     <!-- Top Action Bar -->
     <div class="bg-gradient-to-r from-gray-50 to-white p-4 border-b border-gray-200">
       <!-- Version Selector -->
-      <div class="flex gap-3">
+      <div class="flex gap-3 items-center">
         <!-- Dots Pagination -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <div
             v-for="(result, index) in reversedResults"
             :key="result.id"
             @click="selectVersion(result.id)"
             :title="`版本 ${sortedResults.length - index}`"
             :class="[
-              'cursor-pointer transition-all',
+              'cursor-pointer transition-all px-1',
               selectedResultId === result.id
                 ? 'w-8 h-2 rounded-full bg-blue-600'
                 : 'w-2 h-2 rounded-full bg-gray-300 hover:bg-gray-400'
@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { ChevronUp, ChevronDown, Copy, Check } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -120,6 +120,12 @@ const displayContent = computed(() => {
   }
   return props.currentResult;
 });
+
+watch(() => props.results, (newResults) => {
+  if (newResults.length > 0 && (!selectedResultId.value || !newResults.find(r => r.id === selectedResultId.value))) {
+    selectedResultId.value = sortedResults.value[0].id;
+  }
+}, { immediate: true });
 
 function selectVersion(resultId) {
   selectedResultId.value = resultId;

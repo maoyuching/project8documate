@@ -122,7 +122,7 @@ const displayContent = computed(() => {
 });
 
 watch(() => props.results, (newResults) => {
-  if (newResults.length > 0 && (!selectedResultId.value || !newResults.find(r => r.id === selectedResultId.value))) {
+  if (newResults.length > 0) {
     selectedResultId.value = sortedResults.value[0].id;
   }
 }, { immediate: true });

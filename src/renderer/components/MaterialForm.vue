@@ -1,7 +1,8 @@
 <template>
-  <div :class="hasResult ? 'flex gap-4 p-4 h-full' : 'max-w-4xl mx-auto p-4'">
-    <!-- Left Column - Input Form -->
-    <div :class="hasResult ? 'w-96 flex-shrink-0 overflow-y-auto space-y-4' : 'space-y-4'">
+  <div class="h-full flex flex-col overflow-hidden p-4">
+    <div :class="hasResult ? 'flex gap-4 h-full overflow-hidden' : 'max-w-4xl mx-auto h-full overflow-y-auto'">
+      <!-- Left Column - Input Form -->
+      <div :class="hasResult ? 'w-96 flex-shrink-0 overflow-y-auto space-y-4 pb-4' : 'space-y-4 pb-4'">
       <!-- Task Objective -->
       <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
@@ -71,7 +72,8 @@
       :results="session.results"
       :current-result="session.result"
       @select-version="selectVersion"
-    />
+    ></ResultDisplay>
+    </div>
   </div>
 </template>
 
@@ -121,6 +123,17 @@ function updateStyleReferences(styleReferences) {
   emit('update', { styleReferences });
 }
 
+async function waitForElectronAPI(maxWait = 5000) {
+  const startTime = Date.now();
+  while (!window.electronAPI || !window.electronAPI.generateMaterial) {
+    if (Date.now() - startTime > maxWait) {
+      throw new Error('等待 electronAPI 超时，请刷新页面重试');
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return window.electronAPI;
+}
+
 async function generateMaterial() {
   if (!localObjective.value.trim()) {
     return;
@@ -130,6 +143,8 @@ async function generateMaterial() {
   error.value = '';
 
   try {
+    const api = await waitForElectronAPI();
+    
     // Get AI settings from localStorage
     const settingsStr = localStorage.getItem('aiSettings');
     const settings = settingsStr ? JSON.parse(settingsStr) : {
@@ -138,11 +153,23 @@ async function generateMaterial() {
       model: 'gpt-4',
     };
 
-    const result = await window.electronAPI.generateMaterial({
+    const cleanReferences = localReferences.value.map(item => ({
+      id: item.id,
+      purpose: item.purpose,
+      content: item.content,
+    }));
+
+    const cleanStyleReferences = localStyleReferences.value.map(item => ({
+      id: item.id,
+      purpose: item.purpose,
+      content: item.content,
+    }));
+
+    const result = await api.generateMaterial({
       settings,
       objective: localObjective.value,
-      references: localReferences.value,
-      styleReferences: localStyleReferences.value,
+      references: cleanReferences,
+      styleReferences: cleanStyleReferences,
       useMockData: useMockData.value,
     });
 

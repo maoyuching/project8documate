@@ -9,12 +9,19 @@ if (require('electron-squirrel-startup')) {
 let mainWindow;
 
 const createWindow = () => {
+  let preloadPath;
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    preloadPath = path.join(__dirname, '../../.vite/build/preload.js');
+  } else {
+    preloadPath = path.join(__dirname, '../preload/preload.js');
+  }
+  
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/preload.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
     },

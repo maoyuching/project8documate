@@ -3,7 +3,7 @@
     <!-- Header -->
     <div
       @click="toggleExpanded"
-      class="bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 px-4 py-3 border-b border-gray-200 cursor-pointer transition-colors"
+      class="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 px-4 py-3 border-b border-gray-200 cursor-pointer transition-colors"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">

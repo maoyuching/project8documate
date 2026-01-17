@@ -21,7 +21,7 @@
         </div>
 
         <!-- Dropdown Button -->
-        <div class="relative">
+        <div class="relative" ref="dropdownWrapper">
           <button
             @click="historyDropdownOpen = !historyDropdownOpen"
             class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onBeforeUnmount } from 'vue';
 import { ChevronUp, ChevronDown, Copy, Check } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -103,6 +103,7 @@ const emit = defineEmits(['select-version']);
 
 const selectedResultId = ref('');
 const historyDropdownOpen = ref(false);
+const dropdownWrapper = ref(null);
 const copied = ref(false);
 
 const sortedResults = computed(() => {
@@ -153,4 +154,24 @@ function formatDateTime(timestamp) {
     minute: '2-digit' 
   });
 }
+
+// Outside click handling
+function closeOnClickOutside(event) {
+  if (!dropdownWrapper.value) return;
+  if (dropdownWrapper.value.contains(event.target)) return;
+  historyDropdownOpen.value = false;
+}
+
+watch(historyDropdownOpen, (open) => {
+  if (open) {
+    document.addEventListener('mousedown', closeOnClickOutside);
+  } else {
+    document.removeEventListener('mousedown', closeOnClickOutside);
+  }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', closeOnClickOutside);
+});
 </script>
+

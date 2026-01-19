@@ -4,7 +4,7 @@
     <transition name="sidebar">
       <div v-if="showSidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col">
         <!-- New Session Button -->
-        <div class="p-4 border-b border-gray-200">
+        <div class="p-4">
           <button
             @click="createNewSession"
             class="w-full bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
@@ -101,6 +101,7 @@ const aiSettings = ref({
   url: 'https://api.openai.com/v1/chat/completions',
   apiKey: '',
   model: 'gpt-4',
+  models: ['gpt-4'],
 });
 
 const currentSession = computed(() => {
@@ -220,4 +221,3 @@ function formatTime(timestamp) {
   opacity: 1;
 }
 </style>
-

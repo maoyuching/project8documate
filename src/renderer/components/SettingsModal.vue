@@ -30,12 +30,22 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">
             API Key
           </label>
-          <input
-            v-model="localSettings.apiKey"
-            type="password"
-            placeholder="sk-..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div class="relative">
+            <input
+              v-model="localSettings.apiKey"
+              :type="showApiKey ? 'text' : 'password'"
+              placeholder="sk-..."
+              class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <button
+              @click="showApiKey = !showApiKey"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              type="button"
+            >
+              <Eye v-if="!showApiKey" :size="18" />
+              <EyeOff v-else :size="18" />
+            </button>
+          </div>
           <p class="mt-1 text-xs text-gray-500">您的 API 密钥，将安全存储在本地</p>
         </div>
 
@@ -44,12 +54,61 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">
             模型
           </label>
-          <input
-            v-model="localSettings.model"
-            type="text"
-            placeholder="gpt-4"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
+          <div class="space-y-2">
+            <div class="flex gap-2">
+              <select
+                v-model="localSettings.model"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <option v-for="model in availableModels" :key="model" :value="model">
+                  {{ model }}
+                </option>
+              </select>
+              <button
+                @click="showAddModel = !showAddModel"
+                class="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1"
+                type="button"
+              >
+                <Plus :size="18" />
+              </button>
+            </div>
+            <div v-if="showAddModel" class="flex gap-2">
+              <input
+                v-model="newModelName"
+                type="text"
+                placeholder="输入新模型名称"
+                @keyup.enter="addModel"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                @click="addModel"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                type="button"
+              >
+                添加
+              </button>
+            </div>
+            <div v-if="availableModels.length > 1" class="space-y-1">
+              <p class="text-xs text-gray-500 mb-1">已添加的模型：</p>
+              <div class="space-y-1">
+                <div
+                  v-for="model in availableModels"
+                  :key="model"
+                  class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded"
+                >
+                  <span :class="{ 'font-medium': model === localSettings.model }">{{ model }}</span>
+                  <button
+                    v-if="availableModels.length > 1 && model !== localSettings.model"
+                    @click="removeModel(model)"
+                    class="text-red-500 hover:text-red-700"
+                    type="button"
+                  >
+                    <Trash2 :size="16" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           <p class="mt-1 text-xs text-gray-500">要使用的 AI 模型名称</p>
         </div>
 
@@ -108,7 +167,7 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue';
-import { X, Save, CheckCircle, XCircle, Loader2 } from 'lucide-vue-next';
+import { X, Save, CheckCircle, XCircle, Loader2, Eye, EyeOff, Plus, Trash2 } from 'lucide-vue-next';
 
 const props = defineProps({
   settings: {
@@ -122,9 +181,16 @@ const emit = defineEmits(['close', 'save']);
 const localSettings = reactive({ ...props.settings });
 const testing = ref(false);
 const testResult = ref(null);
+const showApiKey = ref(false);
+const showAddModel = ref(false);
+const newModelName = ref('');
+const availableModels = ref(props.settings.models || [props.settings.model || 'gpt-4']);
 
 watch(() => props.settings, (newSettings) => {
   Object.assign(localSettings, newSettings);
+  if (newSettings.models) {
+    availableModels.value = newSettings.models;
+  }
 }, { deep: true });
 
 function close() {
@@ -132,7 +198,28 @@ function close() {
 }
 
 function save() {
-  emit('save', localSettings);
+  const settingsToSave = { ...localSettings, models: availableModels.value };
+  emit('save', settingsToSave);
+}
+
+function addModel() {
+  const modelName = newModelName.value.trim();
+  if (modelName && !availableModels.value.includes(modelName)) {
+    availableModels.value.push(modelName);
+    localSettings.model = modelName;
+    newModelName.value = '';
+    showAddModel.value = false;
+  }
+}
+
+function removeModel(model) {
+  const index = availableModels.value.indexOf(model);
+  if (index > -1) {
+    availableModels.value.splice(index, 1);
+    if (localSettings.model === model && availableModels.value.length > 0) {
+      localSettings.model = availableModels.value[0];
+    }
+  }
 }
 
 async function testConnection() {

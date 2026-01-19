@@ -60,6 +60,22 @@
         </div>
 
         <div class="flex gap-2 ml-auto">
+          <!-- Metadata Button -->
+          <button
+            v-if="hasMetadata"
+            @click="showMetadata = !showMetadata"
+            :class="[
+              'px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 border',
+              showMetadata
+                ? 'bg-purple-50 text-purple-700 border-purple-200'
+                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+            ]"
+            title="显示生成信息"
+          >
+            <Info :size="16" />
+            <span class="text-sm">信息</span>
+          </button>
+
           <!-- Toggle View Button -->
         <button
           @click="showRawText = !showRawText"
@@ -92,6 +108,45 @@
       </div>
     </div>
 
+    <!-- Metadata Panel -->
+    <div v-if="showMetadata && currentMetadata" class="bg-purple-50 border-t border-purple-200 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="font-medium text-purple-900">生成信息</h4>
+        <button
+          @click="showMetadata = false"
+          class="text-purple-600 hover:text-purple-800"
+        >
+          <X :size="18" />
+        </button>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <span class="text-purple-700">服务供应商：</span>
+          <span class="text-gray-900 font-medium">{{ currentMetadata.provider }}</span>
+        </div>
+        <div>
+          <span class="text-purple-700">模型：</span>
+          <span class="text-gray-900 font-medium">{{ currentMetadata.model }}</span>
+        </div>
+        <div>
+          <span class="text-purple-700">输入 Token：</span>
+          <span class="text-gray-900 font-medium">{{ currentMetadata.inputTokens.toLocaleString() }}</span>
+        </div>
+        <div>
+          <span class="text-purple-700">输出 Token：</span>
+          <span class="text-gray-900 font-medium">{{ currentMetadata.outputTokens.toLocaleString() }}</span>
+        </div>
+        <div>
+          <span class="text-purple-700">总 Token：</span>
+          <span class="text-gray-900 font-medium">{{ currentMetadata.totalTokens.toLocaleString() }}</span>
+        </div>
+        <div>
+          <span class="text-purple-700">消耗时间：</span>
+          <span class="text-gray-900 font-medium">{{ formatDuration(currentMetadata.duration) }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Result Content -->
     <div class="flex-1 overflow-y-auto p-6">
       <div v-if="showRawText" class="prose max-w-none">
@@ -106,7 +161,7 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import { ChevronUp, ChevronDown, Copy, Check, FileText, Eye } from 'lucide-vue-next';
+import { ChevronUp, ChevronDown, Copy, Check, FileText, Eye, Info, X } from 'lucide-vue-next';
 import { marked } from 'marked';
 
 const props = defineProps({
@@ -127,6 +182,7 @@ const historyDropdownOpen = ref(false);
 const dropdownWrapper = ref(null);
 const copied = ref(false);
 const showRawText = ref(false);
+const showMetadata = ref(false);
 
 const sortedResults = computed(() => {
   return [...props.results].sort((a, b) => b.timestamp - a.timestamp);
@@ -151,6 +207,18 @@ const renderedContent = computed(() => {
     console.error('Markdown rendering error:', err);
     return displayContent.value;
   }
+});
+
+const currentMetadata = computed(() => {
+  if (selectedResultId.value) {
+    const result = props.results.find(r => r.id === selectedResultId.value);
+    return result?.metadata || null;
+  }
+  return null;
+});
+
+const hasMetadata = computed(() => {
+  return currentMetadata.value !== null;
 });
 
 watch(() => props.results, (newResults) => {
@@ -178,12 +246,18 @@ async function copyToClipboard() {
 
 function formatDateTime(timestamp) {
   const date = new Date(timestamp);
-  return date.toLocaleString('zh-CN', { 
+  return date.toLocaleString('zh-CN', {
     month: 'numeric',
-    day: 'numeric', 
-    hour: '2-digit', 
-    minute: '2-digit' 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   });
+}
+
+function formatDuration(ms) {
+  const seconds = Math.floor(ms / 1000);
+  const milliseconds = ms % 1000;
+  return `${seconds}.${milliseconds.toFixed(2)}s`;
 }
 
 // Outside click handling

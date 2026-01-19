@@ -106,23 +106,43 @@ ipcMain.handle('generate-material', async (event, data) => {
   }
   
   try {
-    // Construct the prompt
+    // Construct prompt
     let prompt = `请根据以下信息生成一份专业的材料：\n\n任务目标：\n${objective}\n`;
-    
+
     if (references && references.length > 0) {
       prompt += `\n参考资料：\n`;
       references.forEach((ref, index) => {
         prompt += `${index + 1}. ${ref.purpose}\n内容：${ref.content}\n\n`;
       });
     }
-    
+
     if (styleReferences && styleReferences.length > 0) {
       prompt += `\n风格参考：\n`;
       styleReferences.forEach((ref, index) => {
         prompt += `${index + 1}. ${ref.purpose}\n内容：${ref.content}\n\n`;
       });
     }
-    
+
+    // Start timing
+    const startTime = Date.now();
+
+    // Extract provider from URL
+    let provider = 'unknown';
+    const url = new URL(settings.url);
+    if (url.hostname.includes('openai.com')) {
+      provider = 'OpenAI';
+    } else if (url.hostname.includes('anthropic.com')) {
+      provider = 'Anthropic';
+    } else if (url.hostname.includes('deepseek.com')) {
+      provider = 'DeepSeek';
+    } else if (url.hostname.includes('zhipuai.com')) {
+      provider = 'ZhipuAI';
+    } else if (url.hostname.includes('moonshot.cn')) {
+      provider = 'Moonshot';
+    } else {
+      provider = url.hostname;
+    }
+
     // Make API call
     const response = await fetch(settings.url, {
       method: 'POST',
@@ -141,17 +161,30 @@ ipcMain.handle('generate-material', async (event, data) => {
         temperature: 0.7,
       }),
     });
-    
+
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
-    
+
     const result = await response.json();
     const content = result.choices?.[0]?.message?.content || '';
-    
+
+    // End timing
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+
     return {
       success: true,
       content,
+      metadata: {
+        inputTokens: result.usage?.prompt_tokens || 0,
+        outputTokens: result.usage?.completion_tokens || 0,
+        totalTokens: result.usage?.total_tokens || 0,
+        model: settings.model,
+        provider,
+        duration,
+        timestamp: Date.now(),
+      },
     };
   } catch (error) {
     return {

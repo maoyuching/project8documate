@@ -180,10 +180,11 @@ async function generateMaterial() {
         id: Date.now().toString(),
         content: result.content,
         timestamp: Date.now(),
+        metadata: result.metadata || null,
       };
-      
+
       const results = [...(props.session.results || []), newResult];
-      
+
       emit('update', {
         result: result.content,
         results,

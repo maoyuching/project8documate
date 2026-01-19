@@ -53,6 +53,7 @@
     "element-plus": "^2.13.1",
     "lodash-es": "^4.17.22",
     "lucide-vue-next": "^0.562.0",
+    "marked": "^17.0.1",
     "memoize-one": "^6.0.0",
     "normalize-wheel-es": "^1.2.0"
   }

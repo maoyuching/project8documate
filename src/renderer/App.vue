@@ -179,14 +179,24 @@ function deleteSession(id) {
 function updateCurrentSession(updates) {
   const index = sessions.value.findIndex(s => s.id === currentSessionId.value);
   if (index !== -1) {
-    sessions.value[index] = { ...sessions.value[index], ...updates };
-    
+    console.log('[App] Updating session, keys:', Object.keys(updates));
+    console.log('[App] Current session id:', currentSessionId.value);
+
+    // Direct update for better performance with streaming
+    Object.assign(sessions.value[index], updates);
+    console.log('[App] Session updated, result length:', sessions.value[index].result?.length || 0);
+
     // Update title from objective
     if (updates.objective) {
       sessions.value[index].title = updates.objective.substring(0, 30) || '新会话';
     }
-    
-    saveSessions();
+
+    // Only save to localStorage when not in streaming mode
+    // This prevents excessive writes during streaming
+    if (!updates.result || updates.result.includes('\n\n')) {
+      console.log('[App] Saving to localStorage...');
+      saveSessions();
+    }
   }
 }
 

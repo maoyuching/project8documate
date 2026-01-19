@@ -143,7 +143,7 @@ ipcMain.handle('generate-material', async (event, data) => {
       provider = url.hostname;
     }
 
-    // Make API call
+    // Make API call with streaming
     const response = await fetch(settings.url, {
       method: 'POST',
       headers: {
@@ -159,6 +159,7 @@ ipcMain.handle('generate-material', async (event, data) => {
           }
         ],
         temperature: 0.7,
+        stream: true,
       }),
     });
 
@@ -166,20 +167,75 @@ ipcMain.handle('generate-material', async (event, data) => {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content || '';
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let content = '';
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let totalTokens = 0;
+
+    console.log('[Main] Starting stream reader...');
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log('[Main] Stream reading complete, total content length:', content.length);
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const data = JSON.parse(line.slice(6));
+              const delta = data.choices?.[0]?.delta?.content || '';
+              if (delta) {
+                content += delta;
+                console.log('[Main] Sending chunk, total length:', content.length);
+                event.sender.send('stream-chunk', delta);
+              }
+            } catch (e) {
+              console.error('[Main] Error parsing JSON:', e.message, 'Line:', line);
+            }
+          }
+        }
+      }
+    } finally {
+      console.log('[Main] Releasing reader lock...');
+      reader.releaseLock();
+    }
 
     // End timing
     const endTime = Date.now();
     const duration = endTime - startTime;
 
+    console.log('[Main] Generation complete, duration:', duration, 'ms');
+
+    // Send completion with metadata
+    event.sender.send('stream-complete', {
+      content,
+      metadata: {
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        model: settings.model,
+        provider,
+        duration,
+        timestamp: Date.now(),
+      },
+    });
+
+    console.log('[Main] Sent stream-complete event');
+
     return {
       success: true,
       content,
       metadata: {
-        inputTokens: result.usage?.prompt_tokens || 0,
-        outputTokens: result.usage?.completion_tokens || 0,
-        totalTokens: result.usage?.total_tokens || 0,
+        inputTokens,
+        outputTokens,
+        totalTokens,
         model: settings.model,
         provider,
         duration,

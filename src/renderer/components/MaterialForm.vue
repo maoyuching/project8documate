@@ -80,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { Sparkles, Loader } from 'lucide-vue-next';
 import ReferenceList from './ReferenceList.vue';
 import ResultDisplay from './ResultDisplay.vue';
@@ -167,30 +167,84 @@ async function generateMaterial() {
       content: item.content,
     }));
 
-    const result = await api.generateMaterial({
-      settings,
-      objective: localObjective.value,
-      references: cleanReferences,
-      styleReferences: cleanStyleReferences,
-      useMockData: useMockData.value,
+    const streamResultId = Date.now().toString();
+    const streamResult = {
+      id: streamResultId,
+      content: '',
+      timestamp: Date.now(),
+      metadata: null,
+    };
+
+    const results = [...(props.session.results || []), streamResult];
+
+    emit('update', {
+      results,
     });
 
-    if (result.success) {
-      const newResult = {
-        id: Date.now().toString(),
-        content: result.content,
-        timestamp: Date.now(),
-        metadata: result.metadata || null,
-      };
+    if (!useMockData.value) {
+      let streamContent = '';
+      let chunkCount = 0;
 
-      const results = [...(props.session.results || []), newResult];
+      const unsubscribeChunk = api.onStreamChunk((chunk) => {
+        chunkCount++;
+        console.log(`[Stream] Chunk ${chunkCount}:`, chunk.substring(0, 50) + '...');
+        streamContent += chunk;
+        streamResult.content = streamContent;
 
-      emit('update', {
-        result: result.content,
-        results,
+        console.log('[Stream] Total content length:', streamContent.length);
+
+        if (chunkCount % 5 === 0 || streamContent.length < 500) {
+          console.log('[Stream] Emitting update...');
+          emit('update', {
+            result: streamContent,
+            results: [...results],
+          });
+        }
+      });
+
+      const unsubscribeComplete = api.onStreamComplete((data) => {
+        console.log('[Stream] Complete, metadata:', data.metadata);
+        streamResult.content = data.content;
+        streamResult.metadata = data.metadata;
+
+        emit('update', {
+          result: data.content,
+          results: [...results],
+        });
+
+        unsubscribeChunk();
+        unsubscribeComplete();
+      });
+
+      console.log('[Stream] Starting generation...');
+      await api.generateMaterial({
+        settings,
+        objective: localObjective.value,
+        references: cleanReferences,
+        styleReferences: cleanStyleReferences,
+        useMockData: false,
       });
     } else {
-      error.value = result.error || '生成失败，请检查设置';
+      console.log('[Stream] Using mock data mode');
+      const result = await api.generateMaterial({
+        settings,
+        objective: localObjective.value,
+        references: cleanReferences,
+        styleReferences: cleanStyleReferences,
+        useMockData: true,
+      });
+
+      if (result.success) {
+        streamResult.content = result.content;
+        streamResult.metadata = result.metadata || null;
+
+        emit('update', {
+          result: result.content,
+          results,
+        });
+      } else {
+        error.value = result.error || '生成失败，请检查设置';
+      }
     }
   } catch (err) {
     error.value = '生成失败：' + err.message;

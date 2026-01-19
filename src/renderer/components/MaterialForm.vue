@@ -2,7 +2,8 @@
   <div class="h-full flex flex-col overflow-hidden p-4">
     <div :class="hasResult ? 'flex gap-4 h-full overflow-hidden' : 'flex justify-center h-full overflow-y-auto'">
       <!-- Left Column - Input Form -->
-      <div :class="hasResult ? 'w-96 flex-shrink-0 overflow-y-auto space-y-4 pb-4' : 'w-3/4 space-y-4 pb-4'">
+      <div :class="hasResult ? 'w-96 flex-shrink-0 flex flex-col h-full' : 'w-3/4 flex flex-col h-full'">
+        <div class="flex-1 overflow-y-auto space-y-4 pb-4">
       <!-- Task Objective -->
       <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-3 border-b border-gray-200">
@@ -32,9 +33,10 @@
         :items="localStyleReferences"
         @update="updateStyleReferences"
       />
+      </div>
 
-      <!-- Generate Button -->
-      <div class="space-y-3">
+      <!-- Generate Button - Fixed at Bottom -->
+      <div class="flex-shrink-0 space-y-3 pt-4 border-t border-gray-200 bg-white">
         <div class="flex items-center justify-center">
           <label class="flex items-center gap-2 cursor-pointer">
             <input

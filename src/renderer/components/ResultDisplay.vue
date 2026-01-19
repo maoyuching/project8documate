@@ -3,7 +3,7 @@
     <!-- Top Action Bar -->
     <div class="bg-gradient-to-r from-gray-50 to-white p-4 border-b border-gray-200">
       <!-- Version Selector -->
-      <div class="flex gap-3 items-center">
+      <div class="flex gap-3 items-center flex-wrap">
         <!-- Dots Pagination -->
         <div class="flex items-center gap-3">
           <div
@@ -59,11 +59,27 @@
           </div>
         </div>
 
+        <div class="flex gap-2 ml-auto">
+          <!-- Toggle View Button -->
+        <button
+          @click="showRawText = !showRawText"
+          :class="[
+            'px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 border',
+            showRawText
+              ? 'bg-blue-50 text-blue-700 border-blue-200'
+              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+          ]"
+          title="切换显示模式"
+        >
+          <component :is="showRawText ? FileText : Eye" :size="16" />
+          <span class="text-sm">{{ showRawText ? '原始文本' : 'Markdown' }}</span>
+        </button>
+
         <!-- Copy Button -->
         <button
           @click="copyToClipboard"
           :class="[
-            'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 border ml-auto',
+            'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 border',
             copied
               ? 'bg-green-50 text-green-700 border-green-200'
               : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:border-blue-300'
@@ -72,13 +88,17 @@
           <component :is="copied ? Check : Copy" :size="16" />
           <span>{{ copied ? '已复制' : '复制' }}</span>
         </button>
+        </div>
       </div>
     </div>
 
     <!-- Result Content -->
     <div class="flex-1 overflow-y-auto p-6">
-      <div class="prose max-w-none">
+      <div v-if="showRawText" class="prose max-w-none">
         <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">{{ displayContent }}</pre>
+      </div>
+      <div v-else class="prose prose-sm max-w-none">
+        <div class="markdown-body text-gray-800 leading-relaxed" v-html="renderedContent"></div>
       </div>
     </div>
   </div>
@@ -86,7 +106,8 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import { ChevronUp, ChevronDown, Copy, Check } from 'lucide-vue-next';
+import { ChevronUp, ChevronDown, Copy, Check, FileText, Eye } from 'lucide-vue-next';
+import { marked } from 'marked';
 
 const props = defineProps({
   results: {
@@ -105,6 +126,7 @@ const selectedResultId = ref('');
 const historyDropdownOpen = ref(false);
 const dropdownWrapper = ref(null);
 const copied = ref(false);
+const showRawText = ref(false);
 
 const sortedResults = computed(() => {
   return [...props.results].sort((a, b) => b.timestamp - a.timestamp);
@@ -120,6 +142,15 @@ const displayContent = computed(() => {
     return result?.content || props.currentResult;
   }
   return props.currentResult;
+});
+
+const renderedContent = computed(() => {
+  try {
+    return marked(displayContent.value);
+  } catch (err) {
+    console.error('Markdown rendering error:', err);
+    return displayContent.value;
+  }
 });
 
 watch(() => props.results, (newResults) => {
@@ -174,4 +205,128 @@ onBeforeUnmount(() => {
   document.removeEventListener('mousedown', closeOnClickOutside);
 });
 </script>
+
+<style>
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #1f2937;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-body h1 {
+  font-size: 2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+}
+
+.markdown-body h4 {
+  font-size: 1em;
+}
+
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 85%;
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+}
+
+.markdown-body pre {
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: #f6f8fa;
+  border-radius: 6px;
+}
+
+.markdown-body pre code {
+  background-color: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.markdown-body li {
+  margin-top: 0.25em;
+}
+
+.markdown-body blockquote {
+  padding: 0 1em;
+  color: #6b7280;
+  border-left: 0.25em solid #d1d5db;
+  margin: 0 0 16px 0;
+}
+
+.markdown-body table {
+  display: block;
+  width: 100%;
+  overflow: auto;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid #d1d5db;
+}
+
+.markdown-body table th {
+  font-weight: 600;
+  background-color: #f6f8fa;
+}
+
+.markdown-body a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-body hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 24px 0;
+  background-color: #d1d5db;
+  border: 0;
+}
+</style>
 

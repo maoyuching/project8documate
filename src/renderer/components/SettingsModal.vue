@@ -82,10 +82,10 @@
               />
               <button
                 @click="addModel"
-                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                class="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
                 type="button"
               >
-                >
+                <Check :size="18" />
               </button>
             </div>
             <div v-if="availableModels.length > 1" class="space-y-1">
@@ -167,7 +167,7 @@
 
 <script setup>
 import { ref, reactive, watch } from 'vue';
-import { X, Save, CheckCircle, XCircle, Loader2, Eye, EyeOff, Plus, Trash2 } from 'lucide-vue-next';
+import { X, Save, CheckCircle, XCircle, Loader2, Eye, EyeOff, Plus, Trash2, Check } from 'lucide-vue-next';
 
 const props = defineProps({
   settings: {

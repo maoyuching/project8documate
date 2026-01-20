@@ -149,8 +149,12 @@
 
     <!-- Result Content -->
     <div class="flex-1 overflow-y-auto p-6" ref="contentWrapper" @contextmenu="handleContextMenu">
-      <div v-if="showRawText" class="prose max-w-none">
-        <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">{{ displayContent }}</pre>
+      <div v-if="showRawText" class="prose max-w-none h-full">
+        <textarea
+          v-model="editableContent"
+          class="w-full h-full min-h-[200px] whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800 border-0 resize-none focus:outline-none focus:ring-0 p-0"
+          @input="handleContentEdit"
+        ></textarea>
       </div>
       <div v-else class="prose prose-sm max-w-none">
         <div class="markdown-body text-gray-800 leading-relaxed" v-html="renderedContent" @contextmenu.prevent="handleMarkdownContextMenu"></div>
@@ -298,6 +302,7 @@ const dropdownWrapper = ref(null);
 const copied = ref(false);
 const showRawText = ref(false);
 const showMetadata = ref(false);
+const editableContent = ref('');
 const contextMenu = ref({
   show: false,
   x: 0,
@@ -347,6 +352,16 @@ const currentMetadata = computed(() => {
 const hasMetadata = computed(() => {
   return currentMetadata.value !== null;
 });
+
+watch(showRawText, (newShowRawText) => {
+  if (newShowRawText) {
+    editableContent.value = displayContent.value;
+  }
+});
+
+function handleContentEdit() {
+  emit('update-content', { content: editableContent.value, resultId: selectedResultId.value });
+}
 
 watch(() => props.results, (newResults) => {
   if (newResults.length > 0) {

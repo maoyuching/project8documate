@@ -255,9 +255,8 @@ function formatDateTime(timestamp) {
 }
 
 function formatDuration(ms) {
-  const seconds = Math.floor(ms / 1000);
-  const milliseconds = ms % 1000;
-  return `${seconds}.${milliseconds.toFixed(2)}s`;
+  const seconds = ms / 1000;
+  return `${seconds.toFixed(2)}s`;
 }
 
 // Outside click handling

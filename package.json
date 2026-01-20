@@ -55,6 +55,7 @@
     "lucide-vue-next": "^0.562.0",
     "marked": "^17.0.1",
     "memoize-one": "^6.0.0",
-    "normalize-wheel-es": "^1.2.0"
+    "normalize-wheel-es": "^1.2.0",
+    "tiktoken": "^1.0.22"
   }
 }

@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const { encoding_for_model } = require('@dqbd/tiktoken');
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -60,6 +61,29 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+function estimateTokens(text, modelName = 'gpt-4') {
+  try {
+    let modelToUse = modelName;
+    
+    if (modelName.includes('gpt-3.5')) {
+      modelToUse = 'gpt-3.5-turbo';
+    } else if (modelName.includes('gpt-4')) {
+      modelToUse = 'gpt-4';
+    } else {
+      modelToUse = 'cl100k_base';
+    }
+    
+    const encoding = encoding_for_model(modelToUse);
+    const tokens = encoding.encode(text);
+    encoding.free();
+    
+    return tokens.length;
+  } catch (error) {
+    console.warn('[Token Estimate] Failed to estimate tokens:', error.message);
+    return Math.ceil(text.length / 4);
+  }
+}
 
 // IPC handler for AI API calls
 ipcMain.handle('generate-material', async (event, data) => {
@@ -160,6 +184,9 @@ ipcMain.handle('generate-material', async (event, data) => {
         ],
         temperature: 0.7,
         stream: true,
+        stream_options: {
+          include_usage: true
+        },
       }),
     });
 
@@ -196,6 +223,13 @@ ipcMain.handle('generate-material', async (event, data) => {
                 console.log('[Main] Sending chunk, total length:', content.length);
                 event.sender.send('stream-chunk', delta);
               }
+              if (data.usage) {
+                console.log('[Main] ------ Raw usage data:', data.usage);
+                inputTokens = data.usage.prompt_tokens || inputTokens;
+                outputTokens = data.usage.completion_tokens || outputTokens;
+                totalTokens = data.usage.total_tokens || totalTokens;
+                console.log('[Main] Token counts - Input:', inputTokens, 'Output:', outputTokens, 'Total:', totalTokens);
+              }
             } catch (e) {
               console.error('[Main] Error parsing JSON:', e.message, 'Line:', line);
             }
@@ -212,6 +246,15 @@ ipcMain.handle('generate-material', async (event, data) => {
     const duration = endTime - startTime;
 
     console.log('[Main] Generation complete, duration:', duration, 'ms');
+
+    // Fallback: Estimate tokens if API didn't return usage
+    if (inputTokens === 0 && outputTokens === 0) {
+      console.log('[Main] No token usage from API, estimating locally...');
+      inputTokens = estimateTokens(prompt, settings.model);
+      outputTokens = estimateTokens(content, settings.model);
+      totalTokens = inputTokens + outputTokens;
+      console.log('[Main] Estimated tokens - Input:', inputTokens, 'Output:', outputTokens, 'Total:', totalTokens);
+    }
 
     // Send completion with metadata
     event.sender.send('stream-complete', {

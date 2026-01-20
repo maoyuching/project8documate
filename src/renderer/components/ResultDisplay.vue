@@ -195,6 +195,78 @@
         </button>
       </div>
     </div>
+
+    <!-- Regeneration Modal -->
+    <div
+      v-if="showRegenerateModal"
+      class="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+      @click.self="closeRegenerateModal"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
+      >
+        <!-- Modal Header -->
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-gray-900">修改预览</h3>
+          <button
+            @click="closeRegenerateModal"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X :size="20" />
+          </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="flex-1 overflow-y-auto p-6">
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">原文</label>
+            <div class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap border border-gray-200">
+              {{ contextMenu.selectedText }}
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">AI 修改版</label>
+            <div v-if="isRegenerating" class="bg-blue-50 rounded-lg p-8 border border-blue-200 flex flex-col items-center justify-center min-h-[150px]">
+              <Loader :size="32" class="text-blue-600 animate-spin mb-3" />
+              <span class="text-sm text-blue-700">正在生成新版本...</span>
+            </div>
+            <div v-else class="bg-green-50 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap border border-green-200">
+              {{ regeneratedText || contextMenu.selectedText }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+          <button
+            @click="closeRegenerateModal"
+            :disabled="isRegenerating"
+            :class="[
+              'px-4 py-2 rounded-lg font-medium transition-colors',
+              isRegenerating
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            ]"
+          >
+            取消
+          </button>
+          <button
+            @click="applyRegeneratedText"
+            :disabled="isRegenerating"
+            :class="[
+              'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2',
+              isRegenerating
+                ? 'bg-blue-100 text-blue-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            ]"
+          >
+            <component :is="isRegenerating ? Loader : Check" :size="16" :class="isRegenerating ? 'animate-spin' : ''" />
+            <span>{{ isRegenerating ? '生成中...' : '确认应用' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -236,6 +308,8 @@ const contextMenu = ref({
 });
 const contentWrapper = ref(null);
 const isRegenerating = ref(false);
+const showRegenerateModal = ref(false);
+const regeneratedText = ref('');
 
 const sortedResults = computed(() => {
   return [...props.results].sort((a, b) => b.timestamp - a.timestamp);
@@ -398,6 +472,8 @@ async function handleMenuAction(action) {
 async function regenerateSelectedText() {
   if (!contextMenu.value.selectedText.trim()) return;
 
+  showRegenerateModal.value = true;
+  regeneratedText.value = '';
   isRegenerating.value = true;
 
   try {
@@ -416,14 +492,11 @@ async function regenerateSelectedText() {
 
     const unsubscribeChunk = api.onStreamChunk((chunk) => {
       streamContent += chunk;
+      regeneratedText.value = streamContent;
     });
 
     const unsubscribeComplete = api.onStreamComplete((data) => {
-      const content = displayContent.value;
-      const before = content.substring(0, contextMenu.value.startIndex);
-      const after = content.substring(contextMenu.value.endIndex);
-      const newContent = before + data.content + after;
-      emit('update-content', newContent);
+      regeneratedText.value = data.content;
 
       unsubscribeChunk();
       unsubscribeComplete();
@@ -443,6 +516,24 @@ async function regenerateSelectedText() {
     console.error('Regeneration failed:', err);
     isRegenerating.value = false;
   }
+}
+
+function applyRegeneratedText() {
+  if (!regeneratedText.value.trim()) return;
+
+  const content = displayContent.value;
+  const before = content.substring(0, contextMenu.value.startIndex);
+  const after = content.substring(contextMenu.value.endIndex);
+  const newContent = before + regeneratedText.value + after;
+
+  emit('update-content', { content: newContent, resultId: selectedResultId.value });
+
+  closeRegenerateModal();
+}
+
+function closeRegenerateModal() {
+  showRegenerateModal.value = false;
+  regeneratedText.value = '';
 }
 
 async function waitForElectronAPI(maxWait = 5000) {

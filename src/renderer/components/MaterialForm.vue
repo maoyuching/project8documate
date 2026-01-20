@@ -76,6 +76,7 @@
       :session="session"
       @select-version="selectVersion"
       @update-content="updateContent"
+      @update-result="updateResult"
     ></ResultDisplay>
     </div>
   </div>
@@ -262,7 +263,36 @@ function selectVersion(resultId) {
   }
 }
 
-function updateContent(newContent) {
-  emit('update', { result: newContent });
+function updateContent(data) {
+  const content = typeof data === 'string' ? data : data.content;
+  const resultId = typeof data === 'string' ? undefined : data.resultId;
+
+  if (resultId) {
+    const results = [...(props.session.results || [])];
+    const index = results.findIndex(r => r.id === resultId);
+
+    if (index !== -1) {
+      results[index] = {
+        ...results[index],
+        content,
+      };
+      emit('update', { results, result: content });
+    }
+  } else {
+    emit('update', { result: content });
+  }
+}
+
+function updateResult({ resultId, content }) {
+  const results = [...(props.session.results || [])];
+  const index = results.findIndex(r => r.id === resultId);
+
+  if (index !== -1) {
+    results[index] = {
+      ...results[index],
+      content,
+    };
+    emit('update', { results, result: content });
+  }
 }
 </script>

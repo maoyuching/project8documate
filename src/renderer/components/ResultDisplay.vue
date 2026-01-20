@@ -148,12 +148,51 @@
     </div>
 
     <!-- Result Content -->
-    <div class="flex-1 overflow-y-auto p-6">
+    <div class="flex-1 overflow-y-auto p-6" ref="contentWrapper" @contextmenu="handleContextMenu">
       <div v-if="showRawText" class="prose max-w-none">
         <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">{{ displayContent }}</pre>
       </div>
       <div v-else class="prose prose-sm max-w-none">
-        <div class="markdown-body text-gray-800 leading-relaxed" v-html="renderedContent"></div>
+        <div class="markdown-body text-gray-800 leading-relaxed" v-html="renderedContent" @contextmenu.prevent="handleMarkdownContextMenu"></div>
+      </div>
+
+      <!-- Context Menu -->
+      <div
+        v-if="contextMenu.show"
+        :style="{
+          position: 'fixed',
+          left: contextMenu.x + 'px',
+          top: contextMenu.y + 'px',
+          zIndex: 100,
+        }"
+        class="bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[120px]"
+        @click.stop
+      >
+        <button
+          @click="handleMenuAction('copy')"
+          class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+        >
+          <Copy :size="16" />
+          <span>复制</span>
+        </button>
+        <button
+          @click="handleMenuAction('regenerate')"
+          :disabled="isRegenerating"
+          :class="[
+            'w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2',
+            isRegenerating ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700'
+          ]"
+        >
+          <component :is="isRegenerating ? Loader : RefreshCw" :size="16" :class="isRegenerating ? 'animate-spin' : ''" />
+          <span>{{ isRegenerating ? '生成中...' : '换一个' }}</span>
+        </button>
+        <button
+          @click="handleMenuAction('delete')"
+          class="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+        >
+          <Trash2 :size="16" />
+          <span>删除</span>
+        </button>
       </div>
     </div>
   </div>
@@ -161,7 +200,7 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import { ChevronUp, ChevronDown, Copy, Check, Eye, EyeOff, Info, X } from 'lucide-vue-next';
+import { ChevronUp, ChevronDown, Copy, Check, Eye, EyeOff, Info, X, RefreshCw, Trash2, Loader } from 'lucide-vue-next';
 import { marked } from 'marked';
 
 const props = defineProps({
@@ -173,9 +212,13 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  session: {
+    type: Object,
+    required: true,
+  },
 });
 
-const emit = defineEmits(['select-version']);
+const emit = defineEmits(['select-version', 'update-content']);
 
 const selectedResultId = ref('');
 const historyDropdownOpen = ref(false);
@@ -183,6 +226,16 @@ const dropdownWrapper = ref(null);
 const copied = ref(false);
 const showRawText = ref(false);
 const showMetadata = ref(false);
+const contextMenu = ref({
+  show: false,
+  x: 0,
+  y: 0,
+  selectedText: '',
+  startIndex: 0,
+  endIndex: 0,
+});
+const contentWrapper = ref(null);
+const isRegenerating = ref(false);
 
 const sortedResults = computed(() => {
   return [...props.results].sort((a, b) => b.timestamp - a.timestamp);
@@ -276,7 +329,132 @@ watch(historyDropdownOpen, (open) => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', closeOnClickOutside);
+  document.removeEventListener('mousedown', closeContextMenuOutside);
 });
+
+async function handleContextMenu(event) {
+  const selection = window.getSelection();
+  const selectedText = selection.toString().trim();
+
+  if (selectedText) {
+    const content = displayContent.value;
+    const textIndex = content.indexOf(selectedText);
+
+    contextMenu.value = {
+      show: true,
+      x: event.clientX,
+      y: event.clientY,
+      selectedText,
+      startIndex: textIndex,
+      endIndex: textIndex + selectedText.length,
+    };
+  }
+}
+
+function handleMarkdownContextMenu(event) {
+  handleContextMenu(event);
+}
+
+function closeContextMenuOutside(event) {
+  if (contextMenu.value.show && !event.target.closest('.min-w-\\[120px\\]')) {
+    contextMenu.value.show = false;
+  }
+}
+
+watch(() => contextMenu.value.show, (show) => {
+  if (show) {
+    document.addEventListener('mousedown', closeContextMenuOutside);
+  } else {
+    document.removeEventListener('mousedown', closeContextMenuOutside);
+  }
+});
+
+async function handleMenuAction(action) {
+  contextMenu.value.show = false;
+
+  switch (action) {
+    case 'copy':
+      try {
+        await navigator.clipboard.writeText(contextMenu.value.selectedText);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+      break;
+
+    case 'delete':
+      const content = displayContent.value;
+      const before = content.substring(0, contextMenu.value.startIndex);
+      const after = content.substring(contextMenu.value.endIndex);
+      const newContent = before + after;
+      emit('update-content', newContent);
+      break;
+
+    case 'regenerate':
+      await regenerateSelectedText();
+      break;
+  }
+}
+
+async function regenerateSelectedText() {
+  if (!contextMenu.value.selectedText.trim()) return;
+
+  isRegenerating.value = true;
+
+  try {
+    const api = await waitForElectronAPI();
+
+    const settingsStr = localStorage.getItem('aiSettings');
+    const settings = settingsStr ? JSON.parse(settingsStr) : {
+      url: 'https://api.openai.com/v1/chat/completions',
+      apiKey: '',
+      model: 'gpt-4',
+    };
+
+    const prompt = `任务目标：${props.session.objective}\n\n请重新生成以下内容，保持原文的意思和风格：\n\n${contextMenu.value.selectedText}`;
+
+    let streamContent = '';
+
+    const unsubscribeChunk = api.onStreamChunk((chunk) => {
+      streamContent += chunk;
+    });
+
+    const unsubscribeComplete = api.onStreamComplete((data) => {
+      const content = displayContent.value;
+      const before = content.substring(0, contextMenu.value.startIndex);
+      const after = content.substring(contextMenu.value.endIndex);
+      const newContent = before + data.content + after;
+      emit('update-content', newContent);
+
+      unsubscribeChunk();
+      unsubscribeComplete();
+      isRegenerating.value = false;
+    });
+
+    await api.generateMaterial({
+      settings,
+      objective: prompt,
+      references: [],
+      styleReferences: [],
+      useMockData: false,
+      customPrompt: true,
+    });
+
+  } catch (err) {
+    console.error('Regeneration failed:', err);
+    isRegenerating.value = false;
+  }
+}
+
+async function waitForElectronAPI(maxWait = 5000) {
+  const startTime = Date.now();
+  while (!window.electronAPI || !window.electronAPI.generateMaterial) {
+    if (Date.now() - startTime > maxWait) {
+      throw new Error('等待 electronAPI 超时，请刷新页面重试');
+    }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return window.electronAPI;
+}
 </script>
 
 <style>

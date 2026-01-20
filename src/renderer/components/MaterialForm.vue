@@ -73,7 +73,9 @@
       v-if="hasResult"
       :results="session.results"
       :current-result="session.result"
+      :session="session"
       @select-version="selectVersion"
+      @update-content="updateContent"
     ></ResultDisplay>
     </div>
   </div>
@@ -258,5 +260,9 @@ function selectVersion(resultId) {
   if (result) {
     emit('update', { result: result.content });
   }
+}
+
+function updateContent(newContent) {
+  emit('update', { result: newContent });
 }
 </script>

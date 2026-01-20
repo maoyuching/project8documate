@@ -82,13 +82,13 @@
           :class="[
             'px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 border',
             showRawText
-              ? 'bg-blue-50 text-blue-700 border-blue-200'
-              : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+              ? 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+              : 'bg-blue-50 text-blue-700 border-blue-200'
           ]"
-          title="切换显示模式"
+          :title="showRawText ? '显示原始文本' : '显示 Markdown'"
         >
-          <component :is="showRawText ? FileText : Eye" :size="16" />
-          <span class="text-sm">{{ showRawText ? '原始文本' : 'Markdown' }}</span>
+          <component :is="showRawText ? EyeOff : Eye" :size="16" />
+          <span class="text-sm">{{ showRawText ? 'Markdown' : 'Markdown' }}</span>
         </button>
 
         <!-- Copy Button -->
@@ -161,7 +161,7 @@
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue';
-import { ChevronUp, ChevronDown, Copy, Check, FileText, Eye, Info, X } from 'lucide-vue-next';
+import { ChevronUp, ChevronDown, Copy, Check, Eye, EyeOff, Info, X } from 'lucide-vue-next';
 import { marked } from 'marked';
 
 const props = defineProps({

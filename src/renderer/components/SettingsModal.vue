@@ -85,7 +85,7 @@
                 class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 type="button"
               >
-                添加
+                >
               </button>
             </div>
             <div v-if="availableModels.length > 1" class="space-y-1">

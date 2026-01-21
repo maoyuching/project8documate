@@ -458,8 +458,7 @@ function handleMarkdownContextMenu(event) {
   handleContextMenu(event);
 }
 
-// 定义句子边界的标点符号
-const sentenceDelimiters = /[。！？；\n.!?;]/;
+const sentenceDelimiters = /[。！？；：，、…—～「」『』【】《》（）「」『』（）【】（）\n\r.!?;:,—–-\u2026\u2014\u2013\uFF01\uFF1F\u3002\uFF1B\uFF1A\u3001\uFF0C\u30FB\u300C\u300D\u300E\u300F\u3010\u3011\u300A\u300B\uFF08\uFF09\u3008\u3009\uAB\uBB\u2039\u203A\u201C\u201D\u2018\u2019\u00AB\u00BB\u2039\u203A]/;
 
 function getSentenceBoundary(text, position) {
   // 向前查找边界（到标点符号为止）
@@ -477,7 +476,6 @@ function getSentenceBoundary(text, position) {
   while (end < text.length) {
     const char = text[end];
     if (sentenceDelimiters.test(char)) {
-      end++; // 包含标点符号
       break;
     }
     end++;

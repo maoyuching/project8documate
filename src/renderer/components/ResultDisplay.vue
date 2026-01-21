@@ -208,73 +208,107 @@
       </div>
     </div>
 
-    <!-- Regeneration Modal -->
+    <!-- Regenerate Floating Dialog (Draggable) -->
     <div
       v-if="showRegenerateModal"
-      class="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-      @click.self="closeRegenerateModal"
+      ref="regenerateDialog"
+      :style="{
+        position: 'fixed',
+        left: dialogPosition.x + 'px',
+        top: dialogPosition.y + 'px',
+        zIndex: 200,
+      }"
+      class="bg-white rounded-xl shadow-2xl border border-gray-200 w-96 flex flex-col"
     >
-      <div
-        class="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
+      <!-- Dialog Header (Draggable Handle) -->
+      <div 
+        class="px-4 py-3 border-b border-gray-200 flex items-center justify-between cursor-move select-none bg-gray-50 rounded-t-xl"
+        @mousedown="startDrag"
       >
-        <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-gray-900">修改预览</h3>
+        <div class="flex items-center gap-2">
+          <RefreshCw :size="16" class="text-blue-600" />
+          <h3 class="text-sm font-semibold text-gray-900">换一个</h3>
+        </div>
+        <button
+          @click="closeRegenerateModal"
+          class="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded hover:bg-gray-200"
+        >
+          <X :size="16" />
+        </button>
+      </div>
+
+      <!-- Dialog Content -->
+      <div class="p-4">
+        <!-- Original Text -->
+        <div class="mb-3">
+          <label class="block text-xs font-medium text-gray-500 mb-1">原文</label>
+          <div class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap border border-gray-200 max-h-24 overflow-y-auto">
+            {{ initialOriginalText }}
+          </div>
+        </div>
+
+        <!-- AI Generated Text -->
+        <div class="mb-4">
+          <label class="block text-xs font-medium text-gray-500 mb-1">AI 修改版</label>
+          <div v-if="isRegenerating" class="bg-blue-50 rounded-lg p-4 border border-blue-200 flex items-center justify-center min-h-[60px]">
+            <Loader :size="20" class="text-blue-600 animate-spin mr-2" />
+            <span class="text-sm text-blue-700">生成中...</span>
+          </div>
+          <div v-else class="bg-green-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap border border-green-200 max-h-24 overflow-y-auto">
+            {{ regeneratedText || '等待生成...' }}
+          </div>
+        </div>
+
+        <!-- Toggle Button -->
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-xs text-gray-500">在原文中预览</span>
           <button
-            @click="closeRegenerateModal"
-            class="text-gray-400 hover:text-gray-600 transition-colors"
+            @click="toggleShowReplaced"
+            :disabled="isRegenerating || !regeneratedText"
+            :class="[
+              'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+              showReplacedVersion && regeneratedText
+                ? 'bg-blue-600'
+                : 'bg-gray-200',
+              (isRegenerating || !regeneratedText) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+            ]"
           >
-            <X :size="20" />
+            <span
+              :class="[
+                'inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow',
+                showReplacedVersion && regeneratedText ? 'translate-x-6' : 'translate-x-1'
+              ]"
+            ></span>
           </button>
         </div>
 
-        <!-- Modal Content -->
-        <div class="flex-1 overflow-y-auto p-6">
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">原文</label>
-            <div class="bg-gray-50 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap border border-gray-200">
-              {{ contextMenu.selectedText }}
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">AI 修改版</label>
-            <div v-if="isRegenerating" class="bg-blue-50 rounded-lg p-8 border border-blue-200 flex flex-col items-center justify-center min-h-[150px]">
-              <Loader :size="32" class="text-blue-600 animate-spin mb-3" />
-              <span class="text-sm text-blue-700">正在生成新版本...</span>
-            </div>
-            <div v-else class="bg-green-50 rounded-lg p-4 text-sm text-gray-700 whitespace-pre-wrap border border-green-200">
-              {{ regeneratedText || contextMenu.selectedText }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <!-- Action Buttons -->
+        <div class="flex gap-2">
           <button
-            @click="closeRegenerateModal"
+            @click="regenerateAgain"
             :disabled="isRegenerating"
             :class="[
-              'px-4 py-2 rounded-lg font-medium transition-colors',
+              'flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1',
               isRegenerating
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             ]"
           >
-            取消
+            <RefreshCw :size="14" :class="isRegenerating ? 'animate-spin' : ''" />
+            <span>重新生成</span>
           </button>
           <button
             @click="applyRegeneratedText"
-            :disabled="isRegenerating"
+            :disabled="isRegenerating || !regeneratedText"
             :class="[
-              'px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2',
-              isRegenerating
+              'flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1',
+              (isRegenerating || !regeneratedText)
                 ? 'bg-blue-100 text-blue-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             ]"
           >
-            <component :is="isRegenerating ? Loader : Check" :size="16" :class="isRegenerating ? 'animate-spin' : ''" />
-            <span>{{ isRegenerating ? '生成中...' : '确认应用' }}</span>
+            <Check :size="14" />
+            <span>确认应用</span>
           </button>
         </div>
       </div>
@@ -321,12 +355,21 @@ const contextMenu = ref({
 });
 const contentWrapper = ref(null);
 const markdownContainer = ref(null);
+const regenerateDialog = ref(null);
 const isRegenerating = ref(false);
 const showRegenerateModal = ref(false);
 const regeneratedText = ref('');
 const highlightSpan = ref(null);
 const currentHighlightedText = ref('');
 const currentHighlightRange = ref(null);
+const isRegenerateMode = ref(false);
+const showReplacedVersion = ref(false);
+const originalSentenceInfo = ref(null);
+const initialOriginalText = ref(''); // 对话框中显示的原始文本（始终不变）
+const currentDisplayedText = ref(''); // 当前在原文中显示的文本
+const dialogPosition = ref({ x: 100, y: 100 });
+const isDragging = ref(false);
+const dragOffset = ref({ x: 0, y: 0 });
 
 const sortedResults = computed(() => {
   return [...props.results].sort((a, b) => b.timestamp - a.timestamp);
@@ -368,7 +411,7 @@ const hasMetadata = computed(() => {
 watch(showRawText, (newShowRawText) => {
   if (newShowRawText) {
     editableContent.value = displayContent.value;
-    clearHighlight();
+    clearHighlight(true);
   }
 });
 
@@ -432,7 +475,7 @@ watch(historyDropdownOpen, (open) => {
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', closeOnClickOutside);
   document.removeEventListener('mousedown', closeContextMenuOutside);
-  clearHighlight();
+  clearHighlight(true);
 });
 
 async function handleContextMenu(event) {
@@ -503,6 +546,9 @@ function getTextNodeAtPoint(x, y) {
 function handleMouseMove(event) {
   if (!markdownContainer.value) return;
   
+  // 在菜单显示或换一个模式时，不执行标点高亮逻辑
+  if (contextMenu.value.show || isRegenerateMode.value) return;
+  
   const range = getTextNodeAtPoint(event.clientX, event.clientY);
   if (!range || !range.startContainer || range.startContainer.nodeType !== Node.TEXT_NODE) {
     clearHighlight();
@@ -561,7 +607,10 @@ function handleMouseMove(event) {
   }
 }
 
-function clearHighlight() {
+function clearHighlight(force = false) {
+  // 在菜单显示或换一个模式时，除非强制清除，否则不清除高亮
+  if (!force && (contextMenu.value.show || isRegenerateMode.value)) return;
+  
   if (highlightSpan.value && highlightSpan.value.parentNode) {
     const parent = highlightSpan.value.parentNode;
     const text = highlightSpan.value.textContent;
@@ -613,10 +662,9 @@ watch(() => contextMenu.value.show, (show) => {
 });
 
 async function handleMenuAction(action) {
-  contextMenu.value.show = false;
-
   switch (action) {
     case 'copy':
+      contextMenu.value.show = false;
       try {
         await navigator.clipboard.writeText(contextMenu.value.selectedText);
       } catch (err) {
@@ -625,6 +673,7 @@ async function handleMenuAction(action) {
       break;
 
     case 'delete':
+      contextMenu.value.show = false;
       const content = displayContent.value;
       const before = content.substring(0, contextMenu.value.startIndex);
       const after = content.substring(contextMenu.value.endIndex);
@@ -633,6 +682,9 @@ async function handleMenuAction(action) {
       break;
 
     case 'regenerate':
+      // 先设置换一个模式，保持高亮
+      isRegenerateMode.value = true;
+      contextMenu.value.show = false;
       await regenerateSelectedText();
       break;
   }
@@ -641,10 +693,181 @@ async function handleMenuAction(action) {
 async function regenerateSelectedText() {
   if (!contextMenu.value.selectedText.trim()) return;
 
+  // 保存原句信息
+  originalSentenceInfo.value = {
+    text: contextMenu.value.selectedText,
+    startIndex: contextMenu.value.startIndex,
+    endIndex: contextMenu.value.endIndex,
+  };
+  
+  // 初始化对话框显示的原文（始终不变）
+  initialOriginalText.value = contextMenu.value.selectedText;
+  
+  // 初始化当前显示的文本
+  currentDisplayedText.value = contextMenu.value.selectedText;
+
+  // 设置对话框初始位置（在菜单位置附近）
+  dialogPosition.value = {
+    x: Math.min(contextMenu.value.x, window.innerWidth - 400),
+    y: Math.min(contextMenu.value.y, window.innerHeight - 350),
+  };
+
   showRegenerateModal.value = true;
   regeneratedText.value = '';
-  isRegenerating.value = true;
+  showReplacedVersion.value = false;
 
+  await doRegenerate();
+}
+
+function applyRegeneratedText() {
+  if (!regeneratedText.value.trim() || !originalSentenceInfo.value) return;
+
+  const content = displayContent.value;
+  const before = content.substring(0, originalSentenceInfo.value.startIndex);
+  const after = content.substring(originalSentenceInfo.value.endIndex);
+  const newContent = before + regeneratedText.value + after;
+
+  // 更新原句信息以便后续操作
+  const newEndIndex = originalSentenceInfo.value.startIndex + regeneratedText.value.length;
+  originalSentenceInfo.value = {
+    text: regeneratedText.value,
+    startIndex: originalSentenceInfo.value.startIndex,
+    endIndex: newEndIndex,
+  };
+  currentDisplayedText.value = regeneratedText.value;
+
+  emit('update-content', { content: newContent, resultId: selectedResultId.value });
+  
+  // 不关闭对话框，由用户手动关闭
+}
+
+function closeRegenerateModal() {
+  // 如果当前显示的是替换文本，需要还原回原文
+  if (showReplacedVersion.value && originalSentenceInfo.value && currentDisplayedText.value !== originalSentenceInfo.value.text) {
+    showReplacedVersion.value = false;
+    updateOriginalHighlight();
+  }
+  
+  // 清除高亮样式
+  if (markdownContainer.value) {
+    const existingHighlights = markdownContainer.value.querySelectorAll('.regenerate-highlight-original, .regenerate-highlight-replaced');
+    existingHighlights.forEach(el => {
+      const text = el.textContent;
+      const textNode = document.createTextNode(text);
+      el.parentNode.replaceChild(textNode, el);
+    });
+    markdownContainer.value.normalize();
+  }
+  
+  showRegenerateModal.value = false;
+  regeneratedText.value = '';
+  isRegenerateMode.value = false;
+  showReplacedVersion.value = false;
+  originalSentenceInfo.value = null;
+  initialOriginalText.value = '';
+  currentDisplayedText.value = '';
+  clearHighlight(true);
+}
+
+// 拖拽功能
+function startDrag(event) {
+  isDragging.value = true;
+  dragOffset.value = {
+    x: event.clientX - dialogPosition.value.x,
+    y: event.clientY - dialogPosition.value.y,
+  };
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', stopDrag);
+}
+
+function onDrag(event) {
+  if (!isDragging.value) return;
+  dialogPosition.value = {
+    x: event.clientX - dragOffset.value.x,
+    y: event.clientY - dragOffset.value.y,
+  };
+}
+
+function stopDrag() {
+  isDragging.value = false;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
+}
+
+// 切换显示替换版本
+function toggleShowReplaced() {
+  if (!regeneratedText.value || isRegenerating.value) return;
+  showReplacedVersion.value = !showReplacedVersion.value;
+  updateOriginalHighlight();
+}
+
+// 更新原文高亮
+function updateOriginalHighlight() {
+  if (!markdownContainer.value || !originalSentenceInfo.value) return;
+  
+  // 确定要查找的文本（当前显示的）和要替换成的文本
+  const searchText = currentDisplayedText.value || originalSentenceInfo.value.text;
+  const replaceText = showReplacedVersion.value ? regeneratedText.value : originalSentenceInfo.value.text;
+  const highlightClass = showReplacedVersion.value ? 'regenerate-highlight-replaced' : 'regenerate-highlight-original';
+  
+  // 清除现有高亮
+  const existingHighlights = markdownContainer.value.querySelectorAll('.regenerate-highlight-original, .regenerate-highlight-replaced');
+  existingHighlights.forEach(el => {
+    const text = el.textContent;
+    const textNode = document.createTextNode(text);
+    el.parentNode.replaceChild(textNode, el);
+  });
+  markdownContainer.value.normalize();
+  
+  // 找到文本位置并高亮
+  const walker = document.createTreeWalker(
+    markdownContainer.value,
+    NodeFilter.SHOW_TEXT,
+    null,
+    false
+  );
+  
+  let node;
+  while (node = walker.nextNode()) {
+    const text = node.textContent;
+    const index = text.indexOf(searchText);
+    
+    if (index !== -1) {
+      try {
+        const range = document.createRange();
+        range.setStart(node, index);
+        range.setEnd(node, index + searchText.length);
+        
+        const span = document.createElement('span');
+        span.className = highlightClass;
+        span.textContent = replaceText;
+        
+        range.deleteContents();
+        range.insertNode(span);
+        
+        // 更新当前显示的文本
+        currentDisplayedText.value = replaceText;
+        break;
+      } catch (e) {
+        console.debug('Highlight update failed:', e);
+      }
+    }
+  }
+}
+
+// 重新生成
+async function regenerateAgain() {
+  if (isRegenerating.value) return;
+  regeneratedText.value = '';
+  showReplacedVersion.value = false;
+  updateOriginalHighlight();
+  await doRegenerate();
+}
+
+// 执行生成
+async function doRegenerate() {
+  isRegenerating.value = true;
+  
   try {
     const api = await waitForElectronAPI();
 
@@ -655,7 +878,8 @@ async function regenerateSelectedText() {
       model: 'gpt-4',
     };
 
-    const prompt = `任务目标：${props.session.objective}\n\n请重新生成以下内容，保持原文的意思和风格：\n\n${contextMenu.value.selectedText}`;
+    const originalText = originalSentenceInfo.value?.text || contextMenu.value.selectedText;
+    const prompt = `任务目标：${props.session.objective}\n\n请重新生成以下内容，保持原文的意思和风格，只输出修改后的内容，不要包含任何解释：\n\n${originalText}`;
 
     let streamContent = '';
 
@@ -666,7 +890,6 @@ async function regenerateSelectedText() {
 
     const unsubscribeComplete = api.onStreamComplete((data) => {
       regeneratedText.value = data.content;
-
       unsubscribeChunk();
       unsubscribeComplete();
       isRegenerating.value = false;
@@ -685,24 +908,6 @@ async function regenerateSelectedText() {
     console.error('Regeneration failed:', err);
     isRegenerating.value = false;
   }
-}
-
-function applyRegeneratedText() {
-  if (!regeneratedText.value.trim()) return;
-
-  const content = displayContent.value;
-  const before = content.substring(0, contextMenu.value.startIndex);
-  const after = content.substring(contextMenu.value.endIndex);
-  const newContent = before + regeneratedText.value + after;
-
-  emit('update-content', { content: newContent, resultId: selectedResultId.value });
-
-  closeRegenerateModal();
-}
-
-function closeRegenerateModal() {
-  showRegenerateModal.value = false;
-  regeneratedText.value = '';
 }
 
 async function waitForElectronAPI(maxWait = 5000) {
@@ -849,6 +1054,18 @@ async function waitForElectronAPI(maxWait = 5000) {
 
 .sentence-highlight:hover {
   background-color: rgba(59, 130, 246, 0.25);
+}
+
+.regenerate-highlight-original {
+  background-color: rgba(251, 191, 36, 0.3);
+  border-radius: 2px;
+  padding: 1px 2px;
+}
+
+.regenerate-highlight-replaced {
+  background-color: rgba(34, 197, 94, 0.3);
+  border-radius: 2px;
+  padding: 1px 2px;
 }
 </style>
 

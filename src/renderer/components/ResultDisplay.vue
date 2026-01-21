@@ -157,7 +157,15 @@
         ></textarea>
       </div>
       <div v-else class="prose prose-sm max-w-none">
-        <div class="markdown-body text-gray-800 leading-relaxed" v-html="renderedContent" @contextmenu.prevent="handleMarkdownContextMenu"></div>
+        <div 
+          ref="markdownContainer"
+          class="markdown-body text-gray-800 leading-relaxed" 
+          v-html="renderedContent" 
+          @contextmenu.prevent="handleMarkdownContextMenu"
+          @mousemove="handleMouseMove"
+          @mouseleave="clearHighlight"
+          @click="handleSentenceClick"
+        ></div>
       </div>
 
       <!-- Context Menu -->
@@ -312,9 +320,13 @@ const contextMenu = ref({
   endIndex: 0,
 });
 const contentWrapper = ref(null);
+const markdownContainer = ref(null);
 const isRegenerating = ref(false);
 const showRegenerateModal = ref(false);
 const regeneratedText = ref('');
+const highlightSpan = ref(null);
+const currentHighlightedText = ref('');
+const currentHighlightRange = ref(null);
 
 const sortedResults = computed(() => {
   return [...props.results].sort((a, b) => b.timestamp - a.timestamp);
@@ -356,6 +368,7 @@ const hasMetadata = computed(() => {
 watch(showRawText, (newShowRawText) => {
   if (newShowRawText) {
     editableContent.value = displayContent.value;
+    clearHighlight();
   }
 });
 
@@ -419,6 +432,7 @@ watch(historyDropdownOpen, (open) => {
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', closeOnClickOutside);
   document.removeEventListener('mousedown', closeContextMenuOutside);
+  clearHighlight();
 });
 
 async function handleContextMenu(event) {
@@ -442,6 +456,148 @@ async function handleContextMenu(event) {
 
 function handleMarkdownContextMenu(event) {
   handleContextMenu(event);
+}
+
+// 定义句子边界的标点符号
+const sentenceDelimiters = /[。！？；\n.!?;]/;
+
+function getSentenceBoundary(text, position) {
+  // 向前查找边界（到标点符号为止）
+  let start = position;
+  while (start > 0) {
+    const char = text[start - 1];
+    if (sentenceDelimiters.test(char)) {
+      break;
+    }
+    start--;
+  }
+  
+  // 向后查找边界（到标点符号为止）
+  let end = position;
+  while (end < text.length) {
+    const char = text[end];
+    if (sentenceDelimiters.test(char)) {
+      end++; // 包含标点符号
+      break;
+    }
+    end++;
+  }
+  
+  return { start, end };
+}
+
+function getTextNodeAtPoint(x, y) {
+  // 使用 document.caretPositionFromPoint 或 document.caretRangeFromPoint 获取位置
+  let range;
+  if (document.caretRangeFromPoint) {
+    range = document.caretRangeFromPoint(x, y);
+  } else if (document.caretPositionFromPoint) {
+    const pos = document.caretPositionFromPoint(x, y);
+    if (pos && pos.offsetNode) {
+      range = document.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      range.setEnd(pos.offsetNode, pos.offset);
+    }
+  }
+  return range;
+}
+
+function handleMouseMove(event) {
+  if (!markdownContainer.value) return;
+  
+  const range = getTextNodeAtPoint(event.clientX, event.clientY);
+  if (!range || !range.startContainer || range.startContainer.nodeType !== Node.TEXT_NODE) {
+    clearHighlight();
+    return;
+  }
+  
+  const textNode = range.startContainer;
+  const offset = range.startOffset;
+  const text = textNode.textContent || '';
+  
+  // 跳过空白文本节点
+  if (!text.trim()) {
+    clearHighlight();
+    return;
+  }
+  
+  // 获取句子边界
+  const { start, end } = getSentenceBoundary(text, offset);
+  const sentence = text.substring(start, end).trim();
+  
+  // 跳过空句子
+  if (!sentence) {
+    clearHighlight();
+    return;
+  }
+  
+  // 如果高亮的句子相同，不重复处理
+  if (currentHighlightedText.value === sentence && highlightSpan.value) {
+    return;
+  }
+  
+  // 清除之前的高亮
+  clearHighlight();
+  
+  // 创建新的高亮
+  try {
+    const highlightRange = document.createRange();
+    highlightRange.setStart(textNode, start);
+    highlightRange.setEnd(textNode, end);
+    
+    const span = document.createElement('span');
+    span.className = 'sentence-highlight';
+    span.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+    span.style.borderRadius = '2px';
+    span.style.cursor = 'pointer';
+    span.style.transition = 'background-color 0.15s ease';
+    
+    highlightRange.surroundContents(span);
+    
+    highlightSpan.value = span;
+    currentHighlightedText.value = sentence;
+    currentHighlightRange.value = { textNode, start, end };
+  } catch (e) {
+    // 跨节点的情况下可能会失败，忽略
+    console.debug('Highlight failed:', e);
+  }
+}
+
+function clearHighlight() {
+  if (highlightSpan.value && highlightSpan.value.parentNode) {
+    const parent = highlightSpan.value.parentNode;
+    const text = highlightSpan.value.textContent;
+    const textNode = document.createTextNode(text);
+    parent.replaceChild(textNode, highlightSpan.value);
+    parent.normalize(); // 合并相邻的文本节点
+  }
+  highlightSpan.value = null;
+  currentHighlightedText.value = '';
+  currentHighlightRange.value = null;
+}
+
+function handleSentenceClick(event) {
+  // 检查是否点击的是高亮的句子
+  if (!currentHighlightedText.value) return;
+  
+  const target = event.target;
+  if (target.classList && target.classList.contains('sentence-highlight')) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const sentence = currentHighlightedText.value;
+    const content = displayContent.value;
+    const textIndex = content.indexOf(sentence);
+    
+    contextMenu.value = {
+      show: true,
+      x: event.clientX,
+      y: event.clientY,
+      selectedText: sentence,
+      startIndex: textIndex >= 0 ? textIndex : 0,
+      endIndex: textIndex >= 0 ? textIndex + sentence.length : sentence.length,
+    };
+  }
 }
 
 function closeContextMenuOutside(event) {
@@ -684,6 +840,17 @@ async function waitForElectronAPI(maxWait = 5000) {
   margin: 24px 0;
   background-color: #d1d5db;
   border: 0;
+}
+
+.sentence-highlight {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.sentence-highlight:hover {
+  background-color: rgba(59, 130, 246, 0.25);
 }
 </style>
 

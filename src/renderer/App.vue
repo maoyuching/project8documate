@@ -1,8 +1,13 @@
 <template>
   <div class="flex h-screen bg-gray-50">
     <!-- Sidebar -->
-    <transition name="sidebar">
-      <div v-if="showSidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div 
+      :class="[
+        'bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out overflow-hidden',
+        showSidebar ? 'w-64' : 'w-0 border-r-0'
+      ]"
+    >
+      <div class="w-64 flex flex-col h-full">
         <!-- New Session Button -->
         <div class="p-4">
           <button
@@ -50,10 +55,10 @@
           </div>
         </div>
       </div>
-    </transition>
+    </div>
 
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col">
+    <div class="flex-1 flex flex-col transition-all duration-300 ease-in-out">
       <!-- Top Navigation -->
       <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-4">
@@ -217,17 +222,3 @@ function formatTime(timestamp) {
   }
 }
 </script>
-
-<style>
-.sidebar-enter-active, .sidebar-leave-active {
-  transition: transform 0.25s ease, opacity 0.25s ease;
-}
-.sidebar-enter-from, .sidebar-leave-to {
-  transform: translateX(-100%);
-  opacity: 0;
-}
-.sidebar-enter-to, .sidebar-leave-from {
-  transform: translateX(0);
-  opacity: 1;
-}
-</style>

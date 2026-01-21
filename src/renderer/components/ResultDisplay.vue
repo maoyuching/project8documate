@@ -163,7 +163,7 @@
           v-html="renderedContent" 
           @contextmenu.prevent="handleMarkdownContextMenu"
           @mousemove="handleMouseMove"
-          @mouseleave="clearHighlight"
+          @mouseleave="handleMouseLeave"
           @click="handleSentenceClick"
         ></div>
       </div>
@@ -621,6 +621,11 @@ function clearHighlight(force = false) {
   highlightSpan.value = null;
   currentHighlightedText.value = '';
   currentHighlightRange.value = null;
+}
+
+// 鼠标离开时的处理（不传 force 参数）
+function handleMouseLeave() {
+  clearHighlight(false);
 }
 
 function handleSentenceClick(event) {

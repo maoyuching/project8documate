@@ -869,6 +869,64 @@ async function regenerateAgain() {
   await doRegenerate();
 }
 
+// 获取上下文窗口（原文前后内容）
+function getContextWindow(content, startIndex, endIndex, windowSize = 300) {
+  const beforeStart = Math.max(0, startIndex - windowSize);
+  const afterEnd = Math.min(content.length, endIndex + windowSize);
+  
+  const beforeText = content.substring(beforeStart, startIndex).trim();
+  const afterText = content.substring(endIndex, afterEnd).trim();
+  
+  return { beforeText, afterText };
+}
+
+// 构建换一个功能的提示词
+function buildRegeneratePrompt(originalText, context) {
+  const { beforeText, afterText } = context;
+  const references = props.session.references || [];
+  const styleReferences = props.session.styleReferences || [];
+  
+  let prompt = `## 任务目标\n${props.session.objective}\n\n`;
+  
+  // 添加参考资料
+  if (references.length > 0) {
+    prompt += `## 参考资料\n`;
+    references.forEach((ref, index) => {
+      const usage = ref.usage ? `（${ref.usage}）` : '';
+      prompt += `### 参考${index + 1}${usage}\n${ref.content}\n\n`;
+    });
+  }
+  
+  // 添加风格参考
+  if (styleReferences.length > 0) {
+    prompt += `## 风格参考\n`;
+    styleReferences.forEach((ref, index) => {
+      prompt += `### 风格示例${index + 1}\n${ref.content}\n\n`;
+    });
+  }
+  
+  // 添加上下文
+  prompt += `## 上下文\n`;
+  if (beforeText) {
+    prompt += `前文：...${beforeText}\n\n`;
+  }
+  prompt += `【待重写内容】${originalText}\n\n`;
+  if (afterText) {
+    prompt += `后文：${afterText}...\n\n`;
+  }
+  
+  // 添加指令
+  prompt += `## 指令\n请重新生成【待重写内容】部分，要求：\n`;
+  prompt += `1. 保持待重写内容的核心意思\n`;
+  prompt += `2. 与前后文保持连贯,字数与待重写内相差不超过30%, 前后不要增加额外的标点符号\n`;
+  if (styleReferences.length > 0) {
+    prompt += `3. 参考风格示例的写作风格\n`;
+  }
+  prompt += `\n只输出重写后的内容，不要包含任何解释或标记。`;
+  
+  return prompt;
+}
+
 // 执行生成
 async function doRegenerate() {
   isRegenerating.value = true;
@@ -884,7 +942,14 @@ async function doRegenerate() {
     };
 
     const originalText = originalSentenceInfo.value?.text || contextMenu.value.selectedText;
-    const prompt = `任务目标：${props.session.objective}\n\n请重新生成以下内容，保持原文的意思和风格，只输出修改后的内容，不要包含任何解释：\n\n${originalText}`;
+    const startIndex = originalSentenceInfo.value?.startIndex || contextMenu.value.startIndex;
+    const endIndex = originalSentenceInfo.value?.endIndex || contextMenu.value.endIndex;
+    
+    // 获取上下文窗口
+    const context = getContextWindow(displayContent.value, startIndex, endIndex);
+    
+    // 构建增强的提示词
+    const prompt = buildRegeneratePrompt(originalText, context);
 
     let streamContent = '';
 
